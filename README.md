@@ -10,3 +10,4 @@ https://greensoybean.hatenablog.com/search?q=地震計
 - jpg file : outer view of the measurement tool
 
 
+Rust_version folder contains coded with Rust 
