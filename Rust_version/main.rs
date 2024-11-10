@@ -1,17 +1,17 @@
 use chrono::Utc;
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const TARGET_FPS: u32 = 200; // frame rate
 const AD2GAL: f32 = 1.13426; // correction value from ADC to Gal
 
 struct SeismicData {
-    adc_values: Vec<[f32; 3]>, // raw data ring buufer size TARGET_FPS
-    rc_values: [f32; 3],       // accelaration data(temporary)
-    a_values: Vec<f32>,        // accelaration ring buffer size TARGET_FPS*5
-    adc_ring_index: usize,     // adc_values ring budder index Max TARGET_FPS
-    a_ring_index: usize,       // accelaration ring buffer index Max TARGET_FPS*5
+    adc_values: Vec<[f32; 3]>, // raw data ring buffer size TARGET_FPS
+    rc_values: [f32; 3],       // acceleration data (temporary)
+    a_values: Vec<f32>,      // acceleration ring buffer size TARGET_FPS*5
+    adc_ring_index: usize,  // adc_values ring buffer index Max TARGET_FPS
+    a_ring_index: usize,     // acceleration ring buffer index Max TARGET_FPS*5
 }
 
 impl SeismicData {
@@ -27,7 +27,6 @@ impl SeismicData {
 
     fn update(&mut self, raw_adc: [f32; 3]) {
         if self.adc_values.len() >= TARGET_FPS as usize {
-            // use vector as a ring buffer
             self.adc_values.remove(0);
         }
         self.adc_values.push(raw_adc);
@@ -75,23 +74,29 @@ impl SeismicData {
     }
 }
 
-fn adc_read() -> [u16; 3] {
+fn adc_read() -> Result<[u16; 3], String> {
     const BYTE0: u8 = 0x06 | 0x00; // Command byte for channel x in single-ended mode
 
     // Create a SPI object
-    let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 1_000_000, Mode::Mode0).unwrap();
+    let spi = match Spi::new(Bus::Spi0, SlaveSelect::Ss0, 1_000_000, Mode::Mode0) {
+        Ok(spi) => spi,
+        Err(e) => return Err(format!("Failed to create SPI object: {}", e)),
+    };
 
     // Define the buffers for reading
     let mut read_buffer = [0u8; 3];
 
-    // channel array for write_buffer
+    // Channel array for write_buffer
     let ch_array = [0x00u8, 0x40u8, 0x80u8];
     let mut result = [0; 3];
 
     for i in 0..=2 {
-        let write_buffer = [BYTE0, ch_array[i], 0x00]; // command stream(3 bytes)
+        let write_buffer = [BYTE0, ch_array[i], 0x00]; // Command stream (3 bytes)
                                                        // Perform the SPI transfer
-        spi.transfer(&mut read_buffer, &write_buffer).unwrap();
+        match spi.transfer(&mut read_buffer, &write_buffer) {
+            Ok(_) => (),
+            Err(e) => return Err(format!("SPI transfer failed: {}", e)),
+        }
 
         // Extract the 12-bit ADC value
         // Note: MCP3204 returns 12-bit data, but the second byte contains status bit(0) and the MSB of the result.
@@ -99,22 +104,28 @@ fn adc_read() -> [u16; 3] {
         let lsb = read_buffer[2] as u16; // Convert third byte to u16
         result[i] = (msb << 8) | lsb;
     }
-    result
+    Ok(result)
 }
 
 fn main() {
     let mut seismic_data = SeismicData::new();
-    let mut start_time = Instant::now();
+    let mut start_time = Utc::now();
     let mut frame = 0;
 
     loop {
-
-        seismic_data.update(adc_read().map(|x| x as f32));
+        match adc_read() {
+            Ok(raw_adc) => seismic_data.update(raw_adc.map(|x| x as f32)),
+            Err(e) => {
+                eprintln!("Error reading ADC: {}", e);
+                continue;
+            }
+        }
 
         if frame % (TARGET_FPS / 10) == 0 {
+            let current_time = Utc::now();
             println!(
                 "time: {}, scale: {}, frame: {}",
-                Utc::now(),
+                current_time,
                 seismic_data.calculate_seismic_scale(),
                 frame
             );
@@ -122,15 +133,15 @@ fn main() {
 
         frame += 1;
         let next_frame_time = frame as f32 / (TARGET_FPS as f32);
-        let current_time = start_time.elapsed().as_secs_f32();
-        let remain_time = next_frame_time - current_time;
+        let elapsed_time = (Utc::now() - start_time).num_milliseconds() as f32 / 1000.0;
+        let remain_time = next_frame_time - elapsed_time;
 
         if remain_time > 0.0 {
-            thread::sleep(Duration::from_secs_f32(remain_time));
+            thread::sleep(Duration::from_millis((remain_time * 1000.0) as u64));
         }
 
         if frame >= 2_147_483_647 {
-            start_time = Instant::now();
+            start_time = Utc::now();
             frame = 1;
         }
     }
