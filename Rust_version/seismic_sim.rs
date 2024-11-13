@@ -1,10 +1,10 @@
 use chrono::Utc;
 use csv::ReaderBuilder;
-use std::thread;
-use std::time::Duration;
 use plotters::prelude::*;
 use std::fs::File;
 use std::io;
+use std::thread;
+use std::time::Duration;
 
 const N: usize = 12000;
 
@@ -22,7 +22,7 @@ struct SeismicData {
 impl SeismicData {
     fn new() -> Self {
         SeismicData {
-            adc_values: Vec::new(),
+            adc_values: Vec::new(), 
             rc_values: [0.0; 3],
             a_values: Vec::new(),
             adc_ring_index: 0,
@@ -30,7 +30,7 @@ impl SeismicData {
         }
     }
 
-    fn update(&mut self, raw_adc: [f32; 3]) {
+    fn update(&mut self, raw_adc: [f32; 3], frame: u32) {
         if self.adc_values.len() >= TARGET_FPS as usize {
             self.adc_values.remove(0);
         }
@@ -46,8 +46,9 @@ impl SeismicData {
             let offset = sum / TARGET_FPS as f32;
 
             self.rc_values[i] =
-                self.rc_values[i] * 0.94 + self.adc_values[self.adc_ring_index][i] * 0.06;
+                self.rc_values[i] * 0.94 + self.adc_values[self.adc_values.len() - 1][i] * 0.06;        // modify
             axis_gals[i] = (self.rc_values[i] - offset) * AD2GAL;
+
         }
 
         let composite_gal =
@@ -79,9 +80,14 @@ impl SeismicData {
     }
 }
 
-fn draw(x: Vec<usize>, y: Vec<f32>, f_name: &str, cap: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn draw(
+    x: Vec<usize>,
+    y: Vec<f32>,
+    f_name: &str,
+    cap: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let image_width = 1080;
-    let image_height = 720;
+    let image_height = 360;
 
     let root = BitMapBackend::new(f_name, (image_width, image_height)).into_drawing_area();
 
@@ -153,21 +159,21 @@ fn main() -> io::Result<()> {
     let mut frame = 0;
 
     let path = "./noto.csv";
-
     let mut seismic_calc = Vec::new();
-
     let slice_vec = read_csv_to_2d_array(path);
 
     for row in slice_vec? {
-        //println!("{:?}", row);
-
         let slice = [
             *row.get(0).unwrap(),
             *row.get(1).unwrap(),
             *row.get(2).unwrap(),
         ];
 
-        seismic_data.update(slice);
+        seismic_data.update(slice, frame);
+
+        if frame == 4000{
+            println!("slice : {:?}", slice);
+        }
 
         seismic_calc.push(seismic_data.calculate_seismic_scale());
 
@@ -187,19 +193,18 @@ fn main() -> io::Result<()> {
         let remain_time = next_frame_time - elapsed_time;
 
         if remain_time > 0.0 {
-            thread::sleep(Duration::from_millis((remain_time * 1000.0) as u64));
+            //thread::sleep(Duration::from_millis((remain_time * 1000.0) as u64));
         }
-        
     }
 
-        // draw seismic output
-        let buf_re = seismic_calc.clone();
+    // draw seismic output
+    let buf_re = seismic_calc.clone();
 
-        let n = N;
-        let f_input = "seismic.png";
-        let cap = "seismic output";
-        let x: Vec<usize> = (1..=n).collect();
-        let _ = draw(x, buf_re, &f_input, &cap);
-    
+    let n = N;
+    let f_input = "seismic.png";
+    let cap = "seismic output";
+    let x: Vec<usize> = (1..=n).collect();
+    let _ = draw(x, buf_re, &f_input, &cap);
+
     Ok(())
 }
