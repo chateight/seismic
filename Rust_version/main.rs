@@ -41,7 +41,7 @@ impl SeismicData {
             let offset = sum / TARGET_FPS as f32;
 
             self.rc_values[i] =
-                self.rc_values[i] * 0.94 + self.adc_values[self.adc_ring_index][i] * 0.06;
+                self.rc_values[i] * 0.94 + self.adc_values[self.adc_values.len() - 1][i] * 0.06;
             axis_gals[i] = (self.rc_values[i] - offset) * AD2GAL;
         }
 
