@@ -10,4 +10,14 @@ https://greensoybean.hatenablog.com/search?q=地震計
 - jpg file : outer view of the measurement tool
 
 
-Rust_version folder contains coded with Rust 
+Rust_version folder contains codes with Rust 
+
+- main.rs : console output version
+
+- main_disp : display on the ssd1306
+
+- seismic_sim : calcurate using the open data as follows
+(https://www.data.jma.go.jp/eqev/data/kyoshin/jishin/2401011610_noto/index.html)
+edit the download file to delete the header portion
+
+-Cargo.toml : current final version for main_disp.rs, you need to edit that file in case of compiling other source files
