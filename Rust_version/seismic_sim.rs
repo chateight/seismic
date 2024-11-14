@@ -9,14 +9,13 @@ use std::time::Duration;
 const N: usize = 12000;
 
 const TARGET_FPS: u32 = 200; // frame rate
-const AD2GAL: f32 = 1.13426; // correction value from ADC to Gal
+//const AD2GAL: f32 = 1.13426; // correction value from ADC to Gal
+const AD2GAL: f32 = 1.0;
 
 struct SeismicData {
     adc_values: Vec<[f32; 3]>, // raw data ring buffer size TARGET_FPS
     rc_values: [f32; 3],       // acceleration data (temporary)
     a_values: Vec<f32>,        // acceleration ring buffer size TARGET_FPS*5
-    adc_ring_index: usize,     // adc_values ring buffer index Max TARGET_FPS
-    a_ring_index: usize,       // acceleration ring buffer index Max TARGET_FPS*5
 }
 
 impl SeismicData {
@@ -25,8 +24,6 @@ impl SeismicData {
             adc_values: Vec::new(), 
             rc_values: [0.0; 3],
             a_values: Vec::new(),
-            adc_ring_index: 0,
-            a_ring_index: 0,
         }
     }
 
@@ -58,8 +55,6 @@ impl SeismicData {
         }
         self.a_values.push(composite_gal);
 
-        self.adc_ring_index = (self.adc_ring_index + 1) % (TARGET_FPS as usize);
-        self.a_ring_index = (self.a_ring_index + 1) % ((TARGET_FPS as usize) * 5);
     }
 
     fn calculate_seismic_scale(&self) -> f32 {
