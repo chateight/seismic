@@ -7,7 +7,7 @@ https://greensoybean.hatenablog.com/search?q=地震計
 - disp1.py : calc result disply script(assuming value.txt file for temporary storage
 - seismic.py : main routine for calculating seismic value
 - seismic_sch.png : circuit schematics
-- jpg file : outer view of the measurement tool
+- jpg file : outer view of the measurement tool without shutdown switch
 
 
 Rust_version folder contains codes with Rust 
