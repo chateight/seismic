@@ -1,25 +1,16 @@
 use chrono::Utc;
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
-use std::thread;
-use std::time::Duration;
-
-extern crate embedded_graphics;
-extern crate linux_embedded_hal as hal;
-extern crate machine_ip;
-extern crate ssd1306;
-
-use std::sync::mpsc::channel;
-
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
     prelude::*,
     text::{Baseline, Text},
 };
-use hal::I2cdev;
-
+use linux_embedded_hal::I2cdev;
+use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
-
+use std::sync::mpsc::channel;
+use std::thread;
+use std::time::Duration;
 
 fn disp_ch(val: f32) {
     let (tx, rx) = channel();
@@ -29,7 +20,8 @@ fn disp_ch(val: f32) {
     });
 
     let rounded_val = (val * 10.0).round() / 10.0;
-    tx.send(rounded_val.to_string()).expect("Unable to send on channel");
+    tx.send(rounded_val.to_string())
+        .expect("Unable to send on channel");
 }
 
 fn disp(value: String) {
@@ -59,14 +51,15 @@ fn disp(value: String) {
     disp.flush().unwrap();
 }
 
-
 const TARGET_FPS: u32 = 200; // frame rate
-const AD2GAL: f32 = 1.13426; // correction value from ADC to Gal
+// 660mV/G * 4,096/3,300 * k = 980 -> k = 1.196
+//const AD2GAL: f32 = 1.13426; // correction value from ADC to Gal
+const AD2GAL: f32 = 1.196;
 
 struct SeismicData {
     adc_values: Vec<[f32; 3]>, // raw data ring buffer size TARGET_FPS
     rc_values: [f32; 3],       // acceleration data (temporary)
-    a_values: Vec<f32>,      // acceleration ring buffer size TARGET_FPS*5
+    a_values: Vec<f32>,        // acceleration ring buffer size TARGET_FPS*5
 }
 
 impl SeismicData {
@@ -104,7 +97,6 @@ impl SeismicData {
             self.a_values.remove(0);
         }
         self.a_values.push(composite_gal);
-
     }
 
     fn calculate_seismic_scale(&self) -> f32 {

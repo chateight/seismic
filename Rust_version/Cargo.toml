@@ -1,5 +1,5 @@
 [package]
-name = "seismic_refatoring"
+name = "seismic_refactoring"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,6 @@ edition = "2021"
 chrono = "0.4.38"
 rppal = "0.19.0"
 linux-embedded-hal = "0.4.0"
-embedded-graphics = "0.8.1"
 machine-ip = "0.2.1"
 ssd1306 = "0.9.0"
+embedded-graphics = "0.8.1"
